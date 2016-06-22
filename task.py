@@ -46,10 +46,13 @@ class VoiceTask:
             # terminal action: either doSave or doDelete
             episode_end = True
             pass
-        reward = self.environment.observe_reward(new_action)
+        reward = self.environment.observe_reward(old_action)
         self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action)
+
+        # save belief & action for next turn
         self.belief = new_belief
         self.best_action = new_action
+        # counting turn & reward
         self.totalTurn += 1
         self.totalReward += reward
 
