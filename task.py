@@ -31,22 +31,26 @@ class VoiceTask:
                 self.totalEpisode += 1
 
     def do_step(self):
+        print 'turn: %d' % self.totalTurn
         old_belief = new_belief = self.belief
         old_action = self.best_action
         episode_end = False
-        # 1. select action
-        new_action = self.controller.get_best_action()
-        best_action_str = self.get_action_str(new_action)
+
+        best_action_str = self.get_action_str(old_action)
         if best_action_str == 'ask':
-            observation_num = self.environment.get_observation(new_action)
+            observation_num = self.environment.get_observation(old_action)
             new_belief = self.environment.update_belief(
-                old_belief, new_action, observation_num)
+                old_belief, old_action, observation_num)
             pass
         else:
             # terminal action: either doSave or doDelete
             episode_end = True
+            print 'terminal action: %s' % best_action_str
             pass
         reward = self.environment.observe_reward(old_action)
+
+        # 1. select action
+        new_action = self.controller.get_best_action(old_belief)
         self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action)
 
         # save belief & action for next turn
@@ -73,3 +77,6 @@ class VoiceTask:
 
     def get_observation_str(self, observation_num):
         return self.environment.observations[observation_num]
+
+    def test_get_best_action(self):
+        self.controller.get_best_action(self.belief)

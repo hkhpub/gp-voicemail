@@ -180,7 +180,7 @@ class POMDPEnvironment:
         true_state_num = self.states.index(self.true_state)
         prob_dist = [self.Z[(action_num, true_state_num, i)]
                      for i in range(len(self.observations))]
-        print 'prob_dist: %s' % prob_dist
+        # print 'prob_dist: %s' % prob_dist
         observation = np.random.choice(len(self.observations), 1, p=prob_dist)[0]
         return observation
 
