@@ -22,35 +22,37 @@ class VoiceTask:
     def init_episode(self):
         self.environment.init_episode()
         self.belief = self.prior
+        return self.belief
 
     def do_steps(self, n=100):
         for i in range(n):
             episode_end = self.do_step()
-            if episode_end:
-                self.init_episode()
-                self.totalEpisode += 1
 
     def do_step(self):
-        print 'turn: %d' % self.totalTurn
-        old_belief = new_belief = self.belief
-        old_action = self.best_action
+        print '\nturn: %d' % self.totalTurn
         episode_end = False
 
-        best_action_str = self.get_action_str(old_action)
-        if best_action_str == 'ask':
+        old_belief = self.belief
+        old_action = self.best_action
+        action_str = self.get_action_str(old_action)
+
+        if action_str == 'ask':
+            # non-terminal step
+
+            
             observation_num = self.environment.get_observation(old_action)
             new_belief = self.environment.update_belief(
                 old_belief, old_action, observation_num)
             pass
         else:
-            # terminal action: either doSave or doDelete
+            # terminal step
             episode_end = True
-            print 'terminal action: %s' % best_action_str
+            self.totalEpisode += 1
+            new_belief = self.init_episode()        # reset belief to initial belief [0.65, 0.35]
             pass
-        reward = self.environment.observe_reward(old_action)
 
-        # 1. select action
-        new_action = self.controller.get_best_action(old_belief)
+        reward = self.environment.observe_reward(old_action)
+        new_action = self.controller.get_best_action(new_belief)
         self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action)
 
         # save belief & action for next turn
