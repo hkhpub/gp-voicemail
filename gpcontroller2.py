@@ -41,6 +41,7 @@ class GPController:
         if np.random.sample() <= self.epsilon():
             best = self.get_random_action()
         else:
+            # taking action based on GP-SARSA
             values = []
             for action in range(len(self.actions)):
                 k_tilde = self.getKVector(belief, action)

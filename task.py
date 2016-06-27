@@ -27,19 +27,20 @@ class VoiceTask:
     def do_steps(self, n=100):
         for i in range(n):
             episode_end = self.do_step()
+            if episode_end:
+                self.init_episode()  # reset belief to initial belief [0.65, 0.35]
 
     def do_step(self):
         print '\nturn: %d' % self.totalTurn
         episode_end = False
 
         old_belief = self.belief
-        old_action = self.best_action
+        # old_action = self.best_action
+        old_action = self.controller.get_best_action(old_belief)
         action_str = self.get_action_str(old_action)
 
         if action_str == 'ask':
             # non-terminal step
-
-            
             observation_num = self.environment.get_observation(old_action)
             new_belief = self.environment.update_belief(
                 old_belief, old_action, observation_num)
@@ -48,10 +49,11 @@ class VoiceTask:
             # terminal step
             episode_end = True
             self.totalEpisode += 1
-            new_belief = self.init_episode()        # reset belief to initial belief [0.65, 0.35]
             pass
 
         reward = self.environment.observe_reward(old_action)
+        if episode_end:
+            new_belief = self.prior
         new_action = self.controller.get_best_action(new_belief)
         self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action)
 

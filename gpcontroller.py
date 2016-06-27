@@ -8,14 +8,9 @@ class GPController:
     sigma = 14.12
     gamma = 0.9
 
-    action_vectors = [np.array([0, 0, 1]), np.array([0, 1, 0]), np.array([0, 1, 1])]
-
     # Gaussian Kernel parameters
-    # sigma_state = 0.2
-    # c_state = 10
-    # b_action = 0.1
     kernel_sigma = 2.0
-    kernel_c = 10.0
+    kernel_p = 2.0
 
     # Linear Kernel parameters
     lkernel_p = 1
@@ -44,22 +39,20 @@ class GPController:
         if np.random.sample() <= self.epsilon():
             # epsilon-greedy with 0.1 taking random action
             best = self.get_random_action()
+            print '<<<epsilon random action...>>>'
         else:
-            # taking action based on GP-SARSA
             values = []
             for action in range(len(self.actions)):
-                k_tilde = self.getKVector(belief, action)
-                v = np.dot(k_tilde, self.alpha_tilde)
-                values.append(v)
+                kvec = self.getKVector(belief, action)      # size: m
+                values.append(np.dot(self.alpha_tilde, kvec))
+            pass
+            print 'values: %s' % values
             v = np.amax(values)
             bests = []
             for action in range(len(self.actions)):
                 if values[action] == v:
                     bests.append(action)
             best = np.random.choice(bests)
-
-            print 'values: %s' % values
-            # print 'best action: %s' % self.actions[best]
         return best
 
     def get_random_action(self):
@@ -75,6 +68,7 @@ class GPController:
         pass
 
     def observe_step(self, old_belief, old_action, reward, new_belief, new_action):
+        print 'old_belief: %s' % np.round(old_belief.flatten(), 3)
         print 'new_belief: %s' % np.round(new_belief.flatten(), 3)
         print 'old_action: %s' % self.actions[old_action]
         print 'new_action: %s' % self.actions[new_action]
@@ -168,10 +162,10 @@ class GPController:
         return k
 
     def fullKernel_pair(self, belief, action):
-        return self.stateKernel_pair(belief) * self.actionKernel_pair(action)
+        return self.stateKernel_pair(belief) + self.actionKernel_pair(action)
 
     def fullKernel(self, b1, b2, a1, a2):
-        return self.stateKernel(b1, b2) * self.actionKernel(a1, a2)
+        return self.stateKernel(b1, b2) + self.actionKernel(a1, a2)
 
 
     def stateKernel_pair(self, belief):
@@ -182,12 +176,12 @@ class GPController:
         Kernel of two belief vector b1, b2, return value will be a scala
         """
         # Gaussian kernel with param (sigma=5, p=4)
-        # v = -1.0 * (np.linalg.norm(b1-b2)) / (2 * pow(self.kernel_sigma, 2))
-        # result = self.kernel_c * exp(v)
+        v = -1.0 * (np.linalg.norm(b1-b2)) / (2 * pow(self.kernel_sigma, 2))
+        result = pow(self.kernel_p, 2) * exp(v)
 
         # Linear kernel with param (sigma 2, p=3)
-        v = np.dot(np.transpose(b1), b2) + pow(self.lkernel_sigma, 2)
-        result = pow(v, self.lkernel_p)
+        # v = np.dot(np.transpose(b1), b2) + pow(self.lkernel_sigma, 2)
+        # result = pow(v, self.lkernel_p)
         return result
 
     def actionKernel_pair(self, action):
@@ -198,10 +192,7 @@ class GPController:
         Kernel of two action a1, a2, return value will be a scala
         """
         # for simplicity just using delta-kernel
-        avec1 = self.action_vectors[a1]
-        avec2 = self.action_vectors[a2]
-        v = -1.0 * (np.linalg.norm(avec1-avec2)) / (2 * pow(self.kernel_sigma, 2))
-        result = self.kernel_c * exp(v)
+        result = 1 if a1 == a2 else 0
         return result
 
     def extend_dim(self, dim2arr):
