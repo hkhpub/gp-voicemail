@@ -17,7 +17,7 @@ class GPController:
     lkernel_p = 1
     lkernel_sigma = 0
 
-    r_vec = np.array([0.0])             # r:        reward vector
+    r_vec = np.array([0.0, 0.0])             # r:        reward vector
     # W = np.matrix(0.0)                # W:        W matrix
     u_vec = np.array([0.0])             # u:        mean vector
     C = np.matrix(0.0)                  # C:        covariance matrix
@@ -37,10 +37,21 @@ class GPController:
         best = 0
         if np.random.sample() <= self.epsilon():
             # epsilon-greedy with 0.1 taking random action
-            best = self.get_random_action()
             print '<<<epsilon random action...>>>'
-        else:
             best = self.get_random_action()
+        else:
+            values = []
+            for action in range(len(self.actions)):
+                kvec = self.getKVector(belief, action)  # size: m
+                values.append(np.dot(kvec, self.u_vec))
+            pass
+            print 'values: %s' % values
+            v = np.amax(values)
+            bests = []
+            for action in range(len(self.actions)):
+                if values[action] == v:
+                    bests.append(action)
+            best = np.random.choice(bests)
         return best
 
     def get_random_action(self):
@@ -55,7 +66,11 @@ class GPController:
             print 'new_action: %s' % self.actions[new_action]
         print 'reward: %s' % reward
 
-        if non_terminal:
+        B_prev = list(self.B)
+        H_prev = np.copy(self.H)
+        K_prev = np.copy(self.K)
+        r_prev = np.copy(self.r_vec)
+        if True:
             # extend B matrix
             self.B.append((new_belief, new_action))
             # extend H matrix
@@ -75,29 +90,33 @@ class GPController:
                 self.K[-1][cidx] = kvec[cidx]
             self.K[-1][-1] = kpair
             pass
-        else:
-            self.H = self.extend_row(self.H)
-            self.H[-1][-1] = 1
-            pass
+        # else:
+        #     self.H = self.extend_row(self.H)
+        #     self.H[-1][-1] = 1
+        #     pass
 
         # append reward
-        if len(self.r_vec) == 1:
-            self.r_vec[0] = reward
-        else:
-            self.r_vec = np.r_[self.r_vec, reward]
+        self.r_vec = np.r_[self.r_vec, reward]
 
         # update Q-function posterior
-        term1 = np.dot(np.dot(self.H, self.K), np.transpose(self.H))
-        term2 = pow(self.sigma, 2) * np.dot(self.H, np.transpose(self.H))
-        W = np.linalg.inv(term1+term2)
+        term1 = np.dot(np.dot(np.transpose(self.H), self.K), self.H)
+        term2 = pow(self.sigma, 2) * np.dot(np.transpose(self.H), self.H)
+        try:
+            self.W = np.linalg.inv(term1+term2)
+        except np.linalg.LinAlgError:
+            print 'LingAlgError'
+            self.B = list(B_prev)
+            self.H = np.copy(H_prev)
+            self.K = np.copy(K_prev)
+            self.r_vec = np.copy(r_prev)
+            return
 
         # mean vector
-        term1 = np.dot(np.transpose(self.H), W)
+        term1 = np.dot(self.H, self.W)
         self.u_vec = np.dot(term1, self.r_vec)
 
         # covariance matrix
-        term1 = np.dot(np.transpose(self.H), W)
-        self.C = np.dot(term1, self.H)
+        self.C = np.dot(np.transpose(term1), self.H)
 
     def getKVector(self, new_belief, new_action):
         k = np.zeros(len(self.B))
