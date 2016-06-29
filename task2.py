@@ -34,7 +34,7 @@ class VoiceTask:
         print '\nturn: %d' % self.totalTurn
         episode_end = False
 
-        old_belief = new_belief = self.belief
+        old_belief = self.belief
         # old_action = self.best_action
         old_action = self.controller.get_best_action(old_belief)
         action_str = self.get_action_str(old_action)
@@ -55,9 +55,6 @@ class VoiceTask:
             self.controller.observe_step(old_belief, old_action, reward, None, None)
             pass
 
-        # save belief & action for next turn
-        self.belief = new_belief
-        self.best_action = new_action
         # counting turn & reward
         self.totalTurn += 1
         self.totalReward += reward

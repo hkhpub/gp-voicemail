@@ -1,5 +1,5 @@
 from environment import POMDPEnvironment
-from gpcontroller import GPController
+from gpcontroller_presentation import GPController
 import numpy as np
 
 
@@ -38,22 +38,22 @@ class VoiceTask:
         # old_action = self.best_action
         old_action = self.controller.get_best_action(old_belief)
         action_str = self.get_action_str(old_action)
-        reward = self.environment.observe_reward(old_action)
 
         if action_str == 'ask':
             # non-terminal step
             observation_num = self.environment.get_observation(old_action)
             new_belief = self.environment.update_belief(
                 old_belief, old_action, observation_num)
-            new_action = self.controller.get_best_action(new_belief)
-            self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action, True)
             pass
         else:
             # terminal step
             episode_end = True
             self.totalEpisode += 1
-            self.controller.observe_step(old_belief, old_action, reward, None, None)
             pass
+
+        reward = self.environment.observe_reward(old_action)
+        new_action = self.controller.get_best_action(new_belief)
+        self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action)
 
         # save belief & action for next turn
         self.belief = new_belief

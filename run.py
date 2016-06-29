@@ -1,5 +1,6 @@
 import numpy as np
 from task import VoiceTask
+# from task_presentation import VoiceTask
 
 
 if __name__ == '__main__':
@@ -11,7 +12,7 @@ if __name__ == '__main__':
     task.do_steps(500)
     task.print_summary()
 
-    task.test_get_best_action()
+    # task.test_get_best_action()
     # task.test_init_episode()
     # task.test_get_observation_str()
 

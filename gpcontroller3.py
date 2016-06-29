@@ -2,23 +2,19 @@
 import numpy as np
 from math import *
 
-
 class GPController:
     # Meta parameters
-    nu = 0.01
+    nu = 0.1
     sigma = 14.12
-    gamma = 0.9
+    gamma = 0.7
 
     # Gaussian Kernel parameters
-    # sigma_state = 0.2
-    # c_state = 10
-    # b_action = 0.1
-    kernel_sigma = 2
-    kernel_p = 2
+    kernel_sigma = 2.0
+    kernel_p = 2.0
 
     # Linear Kernel parameters
-    # lkernel_p = 2
-    # lkernel_sigma = 1
+    lkernel_p = 1
+    lkernel_sigma = 0
 
     K_tilde_inv = None              # initialized in __init__ method
     a = np.array([1.0])             # a:            alpha vector
@@ -35,51 +31,69 @@ class GPController:
         # array of tuples: [(b0, a0), (b1, a1), (b2, a2)]
         self.dict = [(initial_belief, initial_action)]
         self.K_tilde_inv = np.array([[1.0 / self.fullKernel_pair(initial_belief, initial_action)]])
+        self.__observe_initial_step(initial_belief, initial_action)
+        pass
 
     def get_best_action(self, belief):
         best = 0
         if np.random.sample() <= self.epsilon():
+            # epsilon-greedy with 0.1 taking random action
             best = self.get_random_action()
+            print '<<<epsilon random action...>>>'
         else:
-            # taking action based on GP-SARSA
             values = []
             for action in range(len(self.actions)):
-                k_tilde = self.getKVector(belief, action)
-                v = np.dot(k_tilde, self.alpha_tilde)
-                values.append(v)
+                kvec = self.getKVector(belief, action)      # size: m
+                values.append(np.dot(self.alpha_tilde, kvec))
+            pass
+            print 'values: %s' % values
             v = np.amax(values)
             bests = []
             for action in range(len(self.actions)):
                 if values[action] == v:
                     bests.append(action)
             best = np.random.choice(bests)
-
-            print 'values: %s' % values
-            # print 'best action: %s' % self.actions[best]
         return best
 
     def get_random_action(self):
         return np.random.choice(len(self.actions))
 
-    def observe_step(self, old_belief, old_action, reward, new_belief, new_action):
-        print 'new_belief: %s' % np.round(new_belief.flatten(), 3)
-        print 'old_action: %s' % self.actions[old_action]
-        print 'new_action: %s' % self.actions[new_action]
-        print 'reward: %s' % reward
-        return
-
-        k_tilde = self.getKVector(new_belief, new_action)
-        a_prev = self.a
+    def __observe_initial_step(self, initial_belief, initial_action):
+        print 'initial action: %s' % self.actions[initial_action]
+        k_tilde = self.getKVector(initial_belief, initial_action)
         self.a = np.dot(self.K_tilde_inv, k_tilde)
-        delta = self.fullKernel_pair(new_belief, new_action) - np.dot(k_tilde, self.a)
+        delta = self.fullKernel_pair(initial_belief, initial_action) - np.dot(k_tilde, self.a)
+        if delta > self.nu:
+            print 'debug delta > nu: %d' % delta
+        pass
 
-        k_tilde_prev = self.getKVector(old_belief, old_action)
-        delta_k_tilde = k_tilde_prev - k_tilde * self.gamma
+    def observe_step(self, old_belief, old_action, reward, new_belief, new_action, non_terminal=False):
+        print 'old_belief: %s' % np.round(old_belief.flatten(), 3)
+        # print 'new_belief: %s' % np.round(new_belief.flatten(), 3)
+        print 'old_action: %s' % self.actions[old_action]
+        # print 'new_action: %s' % self.actions[new_action]
+        print 'reward: %s' % reward
+
+        if non_terminal:
+            k_tilde = self.getKVector(new_belief, new_action)
+            a_prev = self.a
+            self.a = np.dot(self.K_tilde_inv, k_tilde)
+            delta = self.fullKernel_pair(new_belief, new_action) - np.dot(k_tilde, self.a)
+
+            k_tilde_prev = self.getKVector(old_belief, old_action)
+            delta_k_tilde = k_tilde_prev - k_tilde * self.gamma
+        else:
+            a_prev = self.a
+            self.a = np.zeros(len(self.dict))
+            delta = 0
+            k_tilde_prev = self.getKVector(old_belief, old_action)
+            delta_k_tilde = k_tilde_prev
+
         _lambda = self.gamma * pow(self.sigma, 2) / self.s
         self.d = self.d * _lambda + reward - np.dot(delta_k_tilde, self.alpha_tilde)
 
         print 'delta: %d' % delta
-        if delta > self.nu:
+        if delta > self.nu and non_terminal:
             """
             delta가 threshold nu를 초과할 경우, dictionary 확장
             """
@@ -96,10 +110,10 @@ class GPController:
                 self.K_tilde_inv[-1][cidx] = -1 * self.a[cidx]
             # last element
             self.K_tilde_inv[-1][-1] = 1.0
-            self.K_tilde_inv = self.K_tilde_inv / delta
+            self.K_tilde_inv /= delta
 
             self.a = np.zeros(len(self.a)+1)
-            self.a[-1] = 1
+            self.a[-1] = 1.0
             h_tilde = np.r_[a_prev, (-1*self.gamma)]
             delta_k = np.dot(a_prev, (k_tilde_prev - k_tilde * 2.0 * self.gamma))
             delta_k += pow(self.gamma, 2) * self.fullKernel_pair(new_belief, new_action)
@@ -115,13 +129,13 @@ class GPController:
             temp1 = np.zeros(len(self.c_tilde)+1)
             temp2 = np.zeros(len(self.c_tilde)+1)
             temp1[:-1] = self.c_tilde   # it's a deep copy of c_tilde array
-            temp1[:-1] = np.dot(self.C_tilde, delta_k_tilde).getA1()
+            temp2[:-1] = np.dot(self.C_tilde, delta_k_tilde).getA1()
 
-            self.c_tilde = np.r_[self.c_tilde, 0]
+            self.c_tilde = np.r_[self.c_tilde, 0.0]
             self.c_tilde[:] = temp1 * _lambda + h_tilde - temp2
 
             # calc for alpha_tilde
-            self.alpha_tilde = np.r_[self.alpha_tilde, 0]   # simple augmenting
+            self.alpha_tilde = np.r_[self.alpha_tilde, 0.0]   # simple augmenting
 
             # calc for C_tilde
             self.C_tilde = self.extend_dim(self.C_tilde)
@@ -132,17 +146,23 @@ class GPController:
             delta가 threshold nu를 초과하지 않을 경우, dictionary를 확장하지 않음
             """
             h_tilde = a_prev - (self.a * self.gamma)
-            delta_k = np.dot(h_tilde, delta_k_tilde)
+            # delta_k = np.dot(h_tilde, delta_k_tilde)
             c_tilde_prev = self.c_tilde
             self.c_tilde = self.c_tilde * _lambda + h_tilde - np.dot(self.C_tilde, delta_k_tilde).getA1()
             if isinf(self.c_tilde[0]):
                 print 'c_tilde positive infinity break'
 
-            # calc for new s
-            self.s = (1+pow(self.gamma, 2)) * pow(self.sigma, 2) \
-                + np.dot(delta_k_tilde, (self.c_tilde + c_tilde_prev * _lambda)) \
-                - _lambda * self.gamma * pow(self.sigma, 2)
-            self.s = self.s.item(0)
+            if non_terminal:
+                # calc for new s
+                self.s = (1 + pow(self.gamma, 2)) * pow(self.sigma, 2) \
+                         + np.dot(delta_k_tilde, (self.c_tilde + c_tilde_prev * _lambda)) \
+                         - _lambda * self.gamma * pow(self.sigma, 2)
+                self.s = self.s.item(0)
+            else:
+                self.s = pow(self.sigma, 2) \
+                         + np.dot(delta_k_tilde, (self.c_tilde + c_tilde_prev * _lambda)) \
+                         - _lambda * self.gamma * pow(self.sigma, 2)
+                self.s = self.s.item(0)
         # end of if
 
         self.alpha_tilde = self.alpha_tilde + (self.c_tilde / self.s) * self.d
@@ -170,12 +190,13 @@ class GPController:
         Kernel of two belief vector b1, b2, return value will be a scala
         """
         # Gaussian kernel with param (sigma=5, p=4)
-        v = -1 * (np.linalg.norm(b1-b2)) / (2 * pow(self.kernel_sigma, 2))
+        v = -1.0 * (np.linalg.norm(b1-b2)) / (2 * pow(self.kernel_sigma, 2))
         result = pow(self.kernel_p, 2) * exp(v)
 
         # Linear kernel with param (sigma 2, p=3)
         # v = np.dot(np.transpose(b1), b2) + pow(self.lkernel_sigma, 2)
         # result = pow(v, self.lkernel_p)
+        # result = np.dot(np.transpose(b1), b2).item(0)
         return result
 
     def actionKernel_pair(self, action):
@@ -186,7 +207,8 @@ class GPController:
         Kernel of two action a1, a2, return value will be a scala
         """
         # for simplicity just using delta-kernel
-        return 0.0001 if a1 == a2 else 1.0
+        result = 1 if a1 == a2 else 0
+        return result
 
     def extend_dim(self, dim2arr):
         """
@@ -202,4 +224,4 @@ class GPController:
 
     @staticmethod
     def epsilon():
-        return 1
+        return 0.1
