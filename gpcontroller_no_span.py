@@ -28,12 +28,9 @@ class GPController:
 
         # array of tuples: [(b0, a0), (b1, a1), (b2, a2)]
         self.B = [(initial_belief, initial_action)]
-        # self.K = np.array([[self.fullKernel_pair(initial_belief, initial_action)]])
+        self.K = np.array([[self.fullKernel_pair(initial_belief, initial_action)]])
         self.H = np.array([[1.0, -1.0*self.gamma]])
-        self.dict = [(initial_belief, initial_action)]
-        self.K_tilde_matrix = np.array([[self.fullKernel_pair(initial_belief, initial_action)]])
-        k_tilde = self.getKVector(initial_belief, initial_action)
-        self.G_matrix = np.array([[np.dot(np.linalg.inv(self.K_tilde_matrix), k_tilde)]])
+
         pass
 
     def get_best_action(self, belief):
@@ -71,49 +68,27 @@ class GPController:
 
         B_prev = list(self.B)
         H_prev = np.copy(self.H)
+        K_prev = np.copy(self.K)
         r_prev = np.copy(self.r_vec)
-        K_tilde_prev = np.copy(self.K_tilde_matrix)
-        G_prev = np.copy(self.G_matrix)
-
-        # extend B matrix
-        self.B.append((new_belief, new_action))
-
         if True:
-            k_tilde = self.getKVector(new_belief, new_action)
-            # delta 계산
-            g_vec = np.dot(np.linalg.inv(self.K_tilde_matrix), k_tilde)
-            delta = self.fullKernel_pair(new_belief, new_action) - np.dot(k_tilde, g_vec)
-
-            if delta > self.nu:
-                # expand dictionary
-                self.dict.append((new_belief, new_action))
-                # expand K gram matrix (m by m)
-                self.K_tilde_matrix = self.extend_dim(self.K_tilde_matrix)
-                k_tilde = self.getKVector(new_belief, new_action)
-
-                len_m = len(self.dict)
-                for ridx in range(len_m):
-                    self.K_tilde_matrix[ridx][-1] = k_tilde[ridx]
-                for cidx in range(len_m):
-                    self.K_tilde_matrix[-1][cidx] = k_tilde[cidx]
-
-            else:
-                pass
-
-            len_m = len(self.dict)
-            len_t = len(self.B)
-            # expand G gram matrix (t by m)
-            self.G_matrix = np.zeros((len_t, len_m))
-            for t in range(len_t):
-                pair = self.B[t]
-                temp_g = self.getKVector(pair[0], pair[1])
-                for m in range(len_m):
-                    self.G_matrix[t][m] = temp_g[m]
-
+            # extend B matrix
+            self.B.append((new_belief, new_action))
             # extend H matrix
             self.H = self.extend_dim(self.H)
             self.H[-1][-1] = -1 * self.gamma
             self.H[-1][-2] = 1
+            # extend K matrix
+            len_t = len(self.K)
+            kpair = self.fullKernel_pair(new_belief, new_action)
+            kvec = self.getKVector(new_belief, new_action)
+            self.K = self.extend_dim(self.K)
+            # assign values to new column
+            for ridx in range(len_t):
+                self.K[ridx][-1] = kvec[ridx]
+            # assign values to new row
+            for cidx in range(len_t):
+                self.K[-1][cidx] = kvec[cidx]
+            self.K[-1][-1] = kpair
             pass
         # else:
         #     self.H = self.extend_row(self.H)
@@ -124,32 +99,30 @@ class GPController:
         self.r_vec = np.r_[self.r_vec, reward]
 
         # update Q-function posterior
-        H_tilde = np.dot(np.transpose(self.H), self.G_matrix)
-        term1 = np.dot(np.dot(H_tilde, self.K_tilde_matrix), np.transpose(H_tilde))
-        term2 = pow(self.sigma, 2) * np.dot(H_tilde, np.transpose(H_tilde))
+        term1 = np.dot(np.dot(np.transpose(self.H), self.K), self.H)
+        term2 = pow(self.sigma, 2) * np.dot(np.transpose(self.H), self.H)
         try:
-            W_tilde = np.linalg.inv(term1+term2)
+            self.W = np.linalg.inv(term1+term2)
         except np.linalg.LinAlgError:
             print 'LingAlgError'
             self.B = list(B_prev)
             self.H = np.copy(H_prev)
-            self.K_tilde_matrix = np.copy(K_tilde_prev)
-            self.G_matrix = np.copy(G_prev)
+            self.K = np.copy(K_prev)
             self.r_vec = np.copy(r_prev)
             return
 
         # mean vector
-        term1 = np.dot(np.transpose(H_tilde), W_tilde)
+        term1 = np.dot(self.H, self.W)
         self.u_vec = np.dot(term1, self.r_vec)
 
         # covariance matrix
-        self.C = np.dot(term1, H_tilde)
+        self.C = np.dot(np.transpose(term1), self.H)
 
     def getKVector(self, new_belief, new_action):
-        k = np.zeros(len(self.dict))
+        k = np.zeros(len(self.B))
         for i in range(len(k)):
-            k[i] = self.fullKernel(self.dict[i][0], new_belief,
-                                   self.dict[i][1], new_action)
+            k[i] = self.fullKernel(self.B[i][0], new_belief,
+                                   self.B[i][1], new_action)
         return k
 
     def fullKernel_pair(self, belief, action):

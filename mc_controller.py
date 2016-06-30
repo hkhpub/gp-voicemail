@@ -3,56 +3,17 @@ import numpy as np
 from math import *
 
 
-class GPController:
-    # Meta parameters
-    nu = 0.1
-    sigma = 2
-    gamma = 0.9
-
-    # Gaussian Kernel parameters
-    kernel_sigma = 2.0
-    kernel_p = 1.0
-
-    # Linear Kernel parameters
-    lkernel_p = 1
-    lkernel_sigma = 0
-
-    r_vec = np.array([0.0])             # r:        reward vector
-    # W = np.matrix(0.0)                # W:        W matrix
-    u_vec = np.array([0.0])             # u:        mean vector
-    C = np.matrix(0.0)                  # C:        covariance matrix
+class MCController:
 
     def __init__(self, states, actions, initial_belief, initial_action):
         self.states = states
         self.actions = actions
 
-        # array of tuples: [(b0, a0), (b1, a1), (b2, a2)]
-        self.B = [(initial_belief, self.actions[initial_action])]
-        self.K = np.array([[self.fullKernel_pair(initial_belief, initial_action)]])
-        self.H = np.array([[1.0, -1.0*self.gamma]])
-
+        self.B = [(initial_belief, initial_action)]
         pass
 
     def get_best_action(self, belief):
-        best = 0
-        if np.random.sample() <= self.epsilon():
-            # epsilon-greedy with 0.1 taking random action
-            print '<<<epsilon random action...>>>'
-            best = self.get_random_action()
-        else:
-            # values = []
-            # for action in range(len(self.actions)):
-            #     kvec = self.getKVector(belief, action)  # size: m
-            #     values.append(np.dot(kvec, self.u_vec))
-            # pass
-            # print 'values: %s' % values
-            # v = np.amax(values)
-            # bests = []
-            # for action in range(len(self.actions)):
-            #     if values[action] == v:
-            #         bests.append(action)
-            # best = np.random.choice(bests)
-            best = self.get_random_action()
+        best = self.get_random_action()
         return best
 
     def get_random_action(self):
@@ -60,19 +21,17 @@ class GPController:
 
     def observe_step(self, old_belief, old_action, reward, new_belief, new_action, non_terminal=False):
         print 'old_belief: %s' % np.round(old_belief.flatten(), 3)
-        print 'new_belief: %s' % np.round(new_belief.flatten(), 3)
         print 'old_action: %s' % self.actions[old_action]
-        print 'new_action: %s' % self.actions[new_action]
         print 'reward: %s' % reward
-        self.B.append((new_belief, self.actions[new_action]))
-        self.r_vec = np.r_[self.r_vec, reward]
 
+        # extend B matrix
+        self.B.append((new_belief, new_action))
 
     def getKVector(self, new_belief, new_action):
-        k = np.zeros(len(self.B))
+        k = np.zeros(len(self.dict))
         for i in range(len(k)):
-            k[i] = self.fullKernel(self.B[i][0], new_belief,
-                                   self.B[i][1], new_action)
+            k[i] = self.fullKernel(self.dict[i][0], new_belief,
+                                   self.dict[i][1], new_action)
         return k
 
     def fullKernel_pair(self, belief, action):

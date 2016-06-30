@@ -1,5 +1,5 @@
 from environment import POMDPEnvironment
-from gpcontroller2 import GPController
+from gpcontroller_no_span import GPController
 import numpy as np
 
 

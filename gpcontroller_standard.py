@@ -102,7 +102,7 @@ class GPController:
             self.K_tilde_inv = self.K_tilde_inv * delta + np.dot(self.a, self.a)
             self.K_tilde_inv = self.extend_dim(self.K_tilde_inv)        # extend dim
             len_t = len(K_tilde_inv_prev)
-            # assign values to new column
+            # assign values to new columnself.G_matrix[-1][t]
             for ridx in range(len_t):
                 self.K_tilde_inv[ridx][-1] = -1 * self.a[ridx]
             # assign values to new row
