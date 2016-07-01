@@ -1,7 +1,7 @@
 import numpy as np
 
 from environment import POMDPEnvironment
-from qlearn.ql_controller import QLController
+from sarsa.sarsa_controller import SarsaController
 
 
 class VoiceTask:
@@ -11,14 +11,14 @@ class VoiceTask:
     def __init__(self, env_file, prior):
         self.environment = POMDPEnvironment(env_file)
         self.prior = self.belief = prior
-        self.best_action = np.random.choice(len(self.environment.actions))
+        self.next_action = np.random.choice(len(self.environment.actions))
         self.totalTurn = 0
         self.totalReward = 0
         self.totalEpisode = 0
 
-        self.controller = QLController(self.environment.states,
+        self.controller = SarsaController(self.environment.states,
                                        self.environment.actions,
-                                       self.belief, self.best_action)
+                                       self.belief, self.next_action)
         self.init_episode()
         pass
 
@@ -32,9 +32,8 @@ class VoiceTask:
             episode_end = self.do_step()
             if episode_end:
                 self.init_episode()  # reset belief to initial belief [0.65, 0.35]
-                self.best_action = self.controller.get_best_action(self.belief)
                 avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
-                print 'avg reward: %.3f' % avg_reward
+                # print 'avg reward: %.3f' % avg_reward
                 self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
 
     def do_step(self):
@@ -42,27 +41,30 @@ class VoiceTask:
         episode_end = False
 
         old_belief = self.belief
-        old_action = self.controller.get_best_action(old_belief)
+        old_action = self.next_action
         action_str = self.get_action_str(old_action)
         reward = self.environment.observe_reward(old_action)
 
         if action_str == 'ask':
-            # non-terminal step
-            observation_num = self.environment.get_observation(old_action)
-            new_belief = self.environment.update_belief(
-                old_belief, old_action, observation_num)
-            self.controller.observe_step(old_belief, old_action, reward, new_belief, True)
             pass
         else:
             # terminal step
             episode_end = True
             self.totalEpisode += 1
-            new_belief = self.belief
-            self.controller.observe_step(old_belief, old_action, reward, new_belief)
             pass
+
+        # new belief s'
+        observation_num = self.environment.get_observation(old_action)
+        new_belief = self.environment.update_belief(
+            old_belief, old_action, observation_num)
+
+        # new action a'
+        new_action = self.controller.get_best_action(new_belief)
+        self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action, True)
 
         # save belief & action for next turn
         self.belief = new_belief
+        self.next_action = new_action
         # counting turn & reward
         self.totalTurn += 1
         self.totalReward += reward
