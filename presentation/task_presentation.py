@@ -1,6 +1,7 @@
-from environment import POMDPEnvironment
-from gpcontroller_no_span import GPController
 import numpy as np
+
+from environment import POMDPEnvironment
+from gpsarsa.gpcontroller_no_span import GPController
 
 
 class VoiceTask:

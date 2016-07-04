@@ -1,9 +1,13 @@
 import numpy as np
+import csv
 # from task import VoiceTask
 # from qlearn.task_ql import VoiceTask
 # from task_presentation import VoiceTask
-from sarsa.task_sarsa import VoiceTask
-import csv
+# from sarsa.task_sarsa import VoiceTask
+# from gpsarsa.task_gpsarsa import VoiceTask
+from gptd.task_gptd import VoiceTask
+# from optimal.task_optimal import VoiceTask
+
 
 if __name__ == '__main__':
 
@@ -11,10 +15,10 @@ if __name__ == '__main__':
 
     task = VoiceTask(env_file, np.array([[0.65], [0.35]]))
 
-    task.do_steps(3000)
+    task.do_steps(5000)
     task.print_summary()
 
-    # write to csv file
+    # # write to csv file
     avg_rewards = task.get_reward_data()
     with open('plots/rewards_dist_sarsa.csv', 'wb') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=['episode', 'avg_reward'])
