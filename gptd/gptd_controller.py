@@ -159,11 +159,11 @@ class GPTDController:
         Kernel of two belief vector b1, b2, return value will be a scala
         """
         # Gaussian kernel with param (sigma=5, p=4)
-        # v = - (np.linalg.norm(b1-b2) ** 2) / (2 * self.kernel_sigma ** 2)
-        # result = pow(self.kernel_p, 2) * exp(v)
+        v = - (np.linalg.norm(b1-b2) ** 2) / (2 * self.kernel_sigma ** 2)
+        result = pow(self.kernel_p, 2) * exp(v)
 
         # scaled norm kernel
-        result = 1 - np.linalg.norm(b1-b2) ** 2 / (np.linalg.norm(b1) ** 2 * np.linalg.norm(b2) ** 2)
+        # result = 1 - np.linalg.norm(b1-b2) ** 2 / (np.linalg.norm(b1) ** 2 * np.linalg.norm(b2) ** 2)
         return result
 
     def actionKernel_pair(self, action):
