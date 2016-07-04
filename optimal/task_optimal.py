@@ -65,6 +65,15 @@ class VoiceTask:
         return episode_end
 
     def do_episodes(self, n=1):
+        while True:
+            if self.totalEpisode == n:
+                break
+            episode_end = self.do_step()
+            if episode_end:
+                self.init_episode()  # reset belief to initial belief [0.65, 0.35]
+                avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
+                print 'avg reward: %.3f' % avg_reward
+                self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
         pass
 
     def print_summary(self):

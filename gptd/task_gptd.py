@@ -14,6 +14,7 @@ class VoiceTask:
         self.totalTurn = 0
         self.totalReward = 0
         self.totalEpisode = 0
+        self.stepInEpisode = 0
 
         self.controller = GPTDController(self.environment.states,
                                          self.environment.actions,
@@ -34,6 +35,7 @@ class VoiceTask:
                 avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
                 print 'avg reward: %.3f' % avg_reward
                 self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
+                self.stepInEpisode = 0
 
     def do_step(self):
         print '\nturn: %d' % self.totalTurn
@@ -68,9 +70,24 @@ class VoiceTask:
         self.totalTurn += 1
         self.totalReward += reward
 
+        # self.stepInEpisode += 1
+        # if self.stepInEpisode == 10:
+        #     episode_end = True
+        #     self.totalEpisode += 1
+
         return episode_end
 
-    def do_episodes(self, n=1):
+    def do_episodes(self, n=100):
+        while True:
+            if self.totalEpisode == n:
+                break
+            episode_end = self.do_step()
+            if episode_end:
+                self.init_episode()  # reset belief to initial belief [0.65, 0.35]
+                avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
+                print 'avg reward: %.3f' % avg_reward
+                self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
+                self.stepInEpisode = 0
         pass
 
     def print_summary(self):

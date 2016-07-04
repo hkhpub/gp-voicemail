@@ -15,8 +15,12 @@ class GPTDController:
     gamma = 0.9
 
     # Gaussian Kernel parameters
-    kernel_sigma = 2.0
+    kernel_sigma = 0.5
     kernel_p = 2.0
+
+    # Linear Kernel parameters
+    lkernel_p = 1
+    lkernel_sigma = 0
 
     tmp_action_values = []  # just for print
 
@@ -44,14 +48,14 @@ class GPTDController:
         if np.random.sample() <= self.epsilon():
             # epsilon-greedy with 0.1 taking random action
             best = self.get_random_action()
-            print '<<<epsilon random action...>>>'
+            # print '<<<epsilon random action...>>>'
         else:
             values = []
             for action in range(len(self.actions)):
                 kvec = self.getKVector(belief, action)      # size: m
-                values.append(np.dot(self.alpha, kvec))
+                values.append(float(np.inner(kvec.T, self.alpha.view.flatten())))
             pass
-            print 'values: %s' % values
+            print 'values: %s' % [float(np.round(v, 4)) for v in values]
             v = np.amax(values)
             bests = []
             for action in range(len(self.actions)):
@@ -71,19 +75,21 @@ class GPTDController:
         print 'new_belief: %s' % np.round(new_belief.flatten(), 3)
         print 'new_action: %s' % self.actions[new_action]
         print 'reward: %s' % reward
+        # print 'new action values %s' % [float(np.round(v, 4)) for v in self.tmp_action_values]
 
         k = self.getKVector(new_belief, new_action)
         a = np.array(np.dot(self.Kinv.view, k)).flatten()
         ktt = float(self.fullKernel_pair(new_belief, new_action))
-        dk = self.getKVector(old_belief, old_action) - self.gamma * k
+        dk = self.getKVector(old_belief, old_action) - self.gamma * self.getKVector(new_belief, new_action)
         delta = ktt - float(np.inner(k.T, a))
         self.d = self.d * self.sinv * self.gamma * self.sigma0 ** 2 + \
             reward - float(np.inner(dk, self.alpha.view.flatten()))
 
+        print 'delta: %f' % delta
         # sparsification test
         if delta > self.nu:
             dk2 = np.array((self.getKVector(old_belief, old_action) - 2 *
-                            self.gamma * k))
+                            self.gamma * self.getKVector(new_belief, new_action))).flatten()
             self.dict.append((new_belief, new_action))
             # update K^-1
             self.Kinv.view = delta * self.Kinv.view + np.outer(a, a)
@@ -91,6 +97,9 @@ class GPTDController:
                              rows=-a.reshape(1, -1),
                              block=np.array([[1]])
                              )
+            self.Kinv.view /= delta
+            print "inverted Kernel matrix:", self.Kinv.view
+
             a = np.zeros(self.Kinv.shape[0])
             a[-1] = 1
 
@@ -98,7 +107,8 @@ class GPTDController:
             hbar[:-1] = self.a
             hbar[-1] = - self.gamma
 
-            dktt = float(np.inner(self.a, dk2) + self.gamma ** 2 * ktt)
+            dktt = float(np.inner(self.a, dk2)) + self.gamma ** 2 * ktt
+
             cm1 = self.c.view.copy().flatten()
             self.c.view = self.c.view.flatten() * self.sinv * self.gamma * self.sigma0 ** 2 \
                 + self.a - np.dot(self.C.view, dk)
@@ -136,10 +146,10 @@ class GPTDController:
         return k
 
     def fullKernel_pair(self, belief, action):
-        return self.stateKernel_pair(belief) * self.actionKernel_pair(action)
+        return self.stateKernel_pair(belief) + self.actionKernel_pair(action)
 
     def fullKernel(self, b1, b2, a1, a2):
-        return self.stateKernel(b1, b2) * self.actionKernel(a1, a2)
+        return self.stateKernel(b1, b2) + self.actionKernel(a1, a2)
 
     def stateKernel_pair(self, belief):
         return self.stateKernel(belief, belief)
@@ -149,12 +159,11 @@ class GPTDController:
         Kernel of two belief vector b1, b2, return value will be a scala
         """
         # Gaussian kernel with param (sigma=5, p=4)
-        v = -1.0 * (np.linalg.norm(b1-b2)) / (2 * pow(self.kernel_sigma, 2))
-        result = pow(self.kernel_p, 2) * exp(v)
+        # v = - (np.linalg.norm(b1-b2) ** 2) / (2 * self.kernel_sigma ** 2)
+        # result = pow(self.kernel_p, 2) * exp(v)
 
-        # Linear kernel with param (sigma 2, p=3)
-        # v = np.dot(np.transpose(b1), b2) + pow(self.lkernel_sigma, 2)
-        # result = pow(v, self.lkernel_p)
+        # scaled norm kernel
+        result = 1 - np.linalg.norm(b1-b2) ** 2 / (np.linalg.norm(b1) ** 2 * np.linalg.norm(b2) ** 2)
         return result
 
     def actionKernel_pair(self, action):
@@ -182,6 +191,7 @@ class GPTDController:
 
     def end(self):
         print 'end debug here'
+        print 'dictionary length: %d' % len(self.dict)
 
     @staticmethod
     def epsilon():
