@@ -1,21 +1,25 @@
-from environment import POMDPEnvironment
-from op_policy import OptimalPolicy
 import numpy as np
 
+from environment import POMDPEnvironment
+from rand.random_controller import RandomController
 
-class VoiceTask_optimal:
+
+class VoiceTask_random:
 
     avg_rewards = []
 
     def __init__(self, env_file, prior):
         self.environment = POMDPEnvironment(env_file)
         self.prior = self.belief = prior
-        self.best_action = np.random.choice(len(self.environment.actions))
+        self.next_action = np.random.choice(len(self.environment.actions))
         self.totalTurn = 0
         self.totalReward = 0
         self.totalEpisode = 0
+        self.stepInEpisode = 0
 
-        self.controller = OptimalPolicy('examples/policy/voicemail.policy')
+        self.controller = RandomController(self.environment.states,
+                                           self.environment.actions,
+                                           self.belief, self.next_action)
         self.init_episode()
         pass
 
@@ -29,42 +33,52 @@ class VoiceTask_optimal:
             episode_end = self.do_step()
             if episode_end:
                 self.init_episode()  # reset belief to initial belief [0.65, 0.35]
-                self.best_action = self.controller.get_best_action(self.belief)
                 avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
                 print 'avg reward: %.3f' % avg_reward
                 self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
+                self.stepInEpisode = 0
 
     def do_step(self):
         print '\nturn: %d' % self.totalTurn
         episode_end = False
 
         old_belief = self.belief
-        old_action = self.controller.get_best_action(old_belief)
+        old_action = self.next_action
         action_str = self.get_action_str(old_action)
         reward = self.environment.observe_reward(old_action)
 
         if action_str == 'ask':
-            # non-terminal step
-            observation_num = self.environment.get_observation(old_action)
-            new_belief = self.environment.update_belief(
-                old_belief, old_action, observation_num)
             pass
         else:
             # terminal step
             episode_end = True
             self.totalEpisode += 1
-            new_belief = self.belief
             pass
+
+        # new belief s'
+        observation_num = self.environment.get_observation(old_action)
+        new_belief = self.environment.update_belief(
+            old_belief, old_action, observation_num)
+
+        # new action a'
+        new_action = self.controller.get_best_action(new_belief)
+        self.controller.observe_step(old_belief, old_action, reward, new_belief, new_action, True)
 
         # save belief & action for next turn
         self.belief = new_belief
+        self.next_action = new_action
         # counting turn & reward
         self.totalTurn += 1
         self.totalReward += reward
 
+        # self.stepInEpisode += 1
+        # if self.stepInEpisode == 10:
+        #     episode_end = True
+        #     self.totalEpisode += 1
+
         return episode_end
 
-    def do_episodes(self, n=1):
+    def do_episodes(self, n=100):
         while True:
             if self.totalEpisode == n:
                 break
@@ -74,6 +88,7 @@ class VoiceTask_optimal:
                 avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
                 print 'avg reward: %.3f' % avg_reward
                 self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
+                self.stepInEpisode = 0
         pass
 
     def print_summary(self):

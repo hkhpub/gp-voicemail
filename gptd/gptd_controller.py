@@ -9,6 +9,9 @@ import util
 
 
 class GPTDController:
+
+    steps = 0
+
     # Meta parameters
     nu = 0.1
     sigma0 = 10.0
@@ -24,7 +27,10 @@ class GPTDController:
 
     tmp_action_values = []  # just for print
 
-    def __init__(self, states, actions, initial_belief, initial_action):
+    def __init__(self, states, actions, initial_belief, initial_action, fixed_epsilon=True):
+
+        self.fixed_epsilon = fixed_epsilon
+
         self.states = states
         self.actions = actions
 
@@ -45,7 +51,7 @@ class GPTDController:
         pass
 
     def get_best_action(self, belief):
-        if np.random.sample() <= self.epsilon():
+        if np.random.sample() <= self.epsilon(self.steps):
             # epsilon-greedy with 0.1 taking random action
             best = self.get_random_action()
             # print '<<<epsilon random action...>>>'
@@ -70,6 +76,7 @@ class GPTDController:
         return np.random.choice(len(self.actions))
 
     def observe_step(self, old_belief, old_action, reward, new_belief, new_action, non_terminal=False):
+        self.steps += 1
         print 'old_belief: %s' % np.round(old_belief.flatten(), 3)
         print 'old_action: %s' % self.actions[old_action]
         print 'new_belief: %s' % np.round(new_belief.flatten(), 3)
@@ -159,11 +166,11 @@ class GPTDController:
         Kernel of two belief vector b1, b2, return value will be a scala
         """
         # Gaussian kernel with param (sigma=5, p=4)
-        v = - (np.linalg.norm(b1-b2) ** 2) / (2 * self.kernel_sigma ** 2)
-        result = pow(self.kernel_p, 2) * exp(v)
+        # v = - (np.linalg.norm(b1-b2) ** 2) / (2 * self.kernel_sigma ** 2)
+        # result = pow(self.kernel_p, 2) * exp(v)
 
         # scaled norm kernel
-        # result = 1 - np.linalg.norm(b1-b2) ** 2 / (np.linalg.norm(b1) ** 2 * np.linalg.norm(b2) ** 2)
+        result = 1 - np.linalg.norm(b1-b2) ** 2 / (np.linalg.norm(b1) ** 2 * np.linalg.norm(b2) ** 2)
         return result
 
     def actionKernel_pair(self, action):
@@ -193,6 +200,10 @@ class GPTDController:
         print 'end debug here'
         print 'dictionary length: %d' % len(self.dict)
 
-    @staticmethod
-    def epsilon():
-        return 0.1
+    def epsilon(self, steps):
+        if self.fixed_epsilon:
+            return 0.1
+        else:
+            e = 0.2 / np.log10(steps+10)
+            print 'epsilon: %f' % e
+            return e

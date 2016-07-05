@@ -3,8 +3,6 @@ import numpy as np
 import random
 import collections
 
-fixed_epsilon = True
-
 
 class QLController:
 
@@ -18,7 +16,9 @@ class QLController:
     # learning step count
     steps = 0
 
-    def __init__(self, states, actions, initial_belief, initial_action):
+    def __init__(self, states, actions, initial_belief, initial_action, fixed_epsilon=True):
+        self.fixed_epsilon = fixed_epsilon
+
         self.states = states
         self.actions = actions
 
@@ -124,9 +124,8 @@ class QLController:
             print '%s, %8s : %.3f' % (key[0], self.actions[key[1]], v)
         pass
 
-    @staticmethod
-    def epsilon(steps):
-        if fixed_epsilon:
+    def epsilon(self, steps):
+        if self.fixed_epsilon:
             return 0.1
         else:
             e = 0.2 / np.log10(steps+10)

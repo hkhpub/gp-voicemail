@@ -3,13 +3,15 @@ from ql_controller import QLController
 import numpy as np
 
 
-class VoiceTask:
+class VoiceTask_ql:
 
     avg_rewards = []
 
-    def __init__(self, env_file, prior):
+    def __init__(self, env_file, prior, fixed_epsilon):
         self.environment = POMDPEnvironment(env_file)
         self.prior = self.belief = prior
+        self.fixed_epsilon = fixed_epsilon
+
         self.best_action = np.random.choice(len(self.environment.actions))
         self.totalTurn = 0
         self.totalReward = 0
@@ -68,7 +70,16 @@ class VoiceTask:
 
         return episode_end
 
-    def do_episodes(self, n=1):
+    def do_episodes(self, n=100):
+        while True:
+            if self.totalEpisode == n:
+                break
+            episode_end = self.do_step()
+            if episode_end:
+                self.init_episode()  # reset belief to initial belief [0.65, 0.35]
+                avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
+                print 'avg reward: %.3f' % avg_reward
+                self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
         pass
 
     def print_summary(self):
@@ -81,6 +92,15 @@ class VoiceTask:
 
     def get_reward_data(self):
         return self.avg_rewards
+
+    def save_results(self, filenm):
+        import csv
+        avg_rewards = self.get_reward_data()
+        with open(filenm, 'wb') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=['episode', 'avg_reward'])
+            writer.writeheader()
+            for (episode, avg_reward) in avg_rewards:
+                writer.writerow({'episode': episode, 'avg_reward': avg_reward})
 
     def get_action_str(self, action_num):
         return self.environment.actions[action_num]

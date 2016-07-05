@@ -3,13 +3,16 @@ import numpy as np
 from environment import POMDPEnvironment
 from gptd.gptd_controller import GPTDController
 
-class VoiceTask:
+
+class VoiceTask_gptd:
 
     avg_rewards = []
 
-    def __init__(self, env_file, prior):
+    def __init__(self, env_file, prior, fixed_epsilon):
         self.environment = POMDPEnvironment(env_file)
         self.prior = self.belief = prior
+        self.fixed_epsilon = fixed_epsilon
+
         self.next_action = np.random.choice(len(self.environment.actions))
         self.totalTurn = 0
         self.totalReward = 0
@@ -100,6 +103,15 @@ class VoiceTask:
 
     def get_reward_data(self):
         return self.avg_rewards
+
+    def save_results(self, filenm):
+        import csv
+        avg_rewards = self.get_reward_data()
+        with open(filenm, 'wb') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=['episode', 'avg_reward'])
+            writer.writeheader()
+            for (episode, avg_reward) in avg_rewards:
+                writer.writerow({'episode': episode, 'avg_reward': avg_reward})
 
     def get_action_str(self, action_num):
         return self.environment.actions[action_num]
