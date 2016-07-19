@@ -36,13 +36,10 @@ if __name__ == '__main__':
         VoiceTask_sarsa(env_file, np.array([[0.65], [0.35]]), fixed_epsilon)
     ]
 
-    # Run only third task
-    i = 3
-    task = task_list[i]
+    for i, task in enumerate(task_list):
+        # task.do_steps(500)
+        task.do_episodes(200)
+        task.print_summary()
 
-    # task.do_steps(1000)
-    task.do_episodes(2000)
-    task.print_summary()
-
-    # write to csv file
-    task.save_results(result_files[i])
+        # write to csv file
+        task.save_results(result_files[i])

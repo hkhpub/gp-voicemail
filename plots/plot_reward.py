@@ -19,8 +19,8 @@ args = []
 if sys.argv is not None:
     args = sys.argv
 
-filenm = args[1] if len(args) >= 2 else 'rewards_dist.csv'
-color = args[2] if len(args) >= 3 else 'r'
+filenm = args[1] if len(args) >= 2 else 'rewards_dist_optimal.csv'
+color = args[2] if len(args) >= 3 else 'g'
 print 'loading file >>> ' + filenm
 
 with open(filenm) as csvfile:

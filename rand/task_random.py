@@ -93,6 +93,7 @@ class VoiceTask_random:
 
     def print_summary(self):
         self.controller.end()
+        print 'random policy - total steps: %d' % self.totalTurn
         print '\n-------summary-------------'
         print 'Total Episodes: %d' % self.totalEpisode
         print 'Total Rewards: %d' % self.totalReward

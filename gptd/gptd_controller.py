@@ -11,7 +11,7 @@ import util
 class GPTDController:
 
     steps = 0
-
+    _epsilon = 0.1
     # Meta parameters
     nu = 0.1
     sigma0 = 10.0
@@ -49,6 +49,9 @@ class GPTDController:
         self.c.expand(rows=np.array(0))
         self.alpha.expand(rows=np.array(0))
         pass
+
+    def set_epsilon(self, epsilon):
+        self._epsilon = epsilon
 
     def get_best_action(self, belief):
         if np.random.sample() <= self.epsilon(self.steps):
@@ -184,25 +187,17 @@ class GPTDController:
         result = 1 if a1 == a2 else 0
         return result
 
-    def extend_dim(self, dim2arr):
-        """
-        extends rows and columns by 1
-        :param dim2arr: 2D-Array
-        :return:
-        """
-        col = np.zeros(dim2arr.shape[0])
-        dim2arr = np.column_stack((dim2arr, col))
-        row = np.zeros(dim2arr.shape[1])
-        dim2arr = np.row_stack((dim2arr, row))
-        return dim2arr
-
     def end(self):
         print 'end debug here'
         print 'dictionary length: %d' % len(self.dict)
+        print '---------- dictionary -----------'
+        for tup in self.dict:
+            print '(%s, %s), %s' % (tup[0][0].item(0), tup[0][1].item(0), self.actions[tup[1]])
+        # print 'alpha: %s' % self.alpha.view.flatten()
 
     def epsilon(self, steps):
         if self.fixed_epsilon:
-            return 0.1
+            return self._epsilon
         else:
             e = 0.2 / np.log10(steps+10)
             print 'epsilon: %f' % e

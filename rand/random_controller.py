@@ -61,23 +61,6 @@ class RandomController:
         result = 1 if a1 == a2 else 0
         return result
 
-    def extend_dim(self, dim2arr):
-        """
-        extends rows and columns by 1
-        :param dim2arr: 2D-Array
-        :return:
-        """
-        col = np.zeros(dim2arr.shape[0])
-        dim2arr = np.column_stack((dim2arr, col))
-        row = np.zeros(dim2arr.shape[1])
-        dim2arr = np.row_stack((dim2arr, row))
-        return dim2arr
-
-    def extend_row(self, dim2arr):
-        row = np.zeros(dim2arr.shape[1])
-        dim2arr = np.row_stack((dim2arr, row))
-        return dim2arr
-
     def end(self):
         print 'end debug here'
         pass

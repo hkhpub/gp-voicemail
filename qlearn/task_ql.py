@@ -84,6 +84,7 @@ class VoiceTask_ql:
 
     def print_summary(self):
         self.controller.end()
+        print 'Q-learning - total steps: %d' % self.totalTurn
         print '\n-------summary-------------'
         print 'Total Episodes: %d' % self.totalEpisode
         print 'Total Rewards: %d' % self.totalReward

@@ -7,6 +7,9 @@ from gptd.gptd_controller import GPTDController
 class VoiceTask_gptd:
 
     avg_rewards = []
+    avg_rewards_after = []
+    step_threshold = None
+    episode_threshold = None
 
     def __init__(self, env_file, prior, fixed_epsilon):
         self.environment = POMDPEnvironment(env_file)
@@ -18,6 +21,10 @@ class VoiceTask_gptd:
         self.totalReward = 0
         self.totalEpisode = 0
         self.stepInEpisode = 0
+
+        # count after half step
+        self.totalRewardAfter = 0
+        self.totalEpisodeAfter = 1
 
         self.controller = GPTDController(self.environment.states,
                                          self.environment.actions,
@@ -31,14 +38,12 @@ class VoiceTask_gptd:
         return self.belief
 
     def do_steps(self, n=100):
+        self.step_threshold = n/2
+
         for i in range(n):
             episode_end = self.do_step()
             if episode_end:
-                self.init_episode()  # reset belief to initial belief [0.65, 0.35]
-                avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
-                print 'avg reward: %.3f' % avg_reward
-                self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
-                self.stepInEpisode = 0
+                self.calc_episode_end()
 
     def do_step(self):
         print '\nturn: %d' % self.totalTurn
@@ -55,6 +60,12 @@ class VoiceTask_gptd:
             # terminal step
             episode_end = True
             self.totalEpisode += 1
+            if self.step_threshold is not None and self.totalTurn > self.step_threshold:
+                self.totalEpisodeAfter += 1
+                self.controller.set_epsilon(0.0)
+            if self.episode_threshold is not None and self.totalEpisode > self.episode_threshold:
+                self.totalEpisodeAfter += 1
+                self.controller.set_epsilon(0.0)
             pass
 
         # new belief s'
@@ -72,6 +83,10 @@ class VoiceTask_gptd:
         # counting turn & reward
         self.totalTurn += 1
         self.totalReward += reward
+        if self.step_threshold is not None and self.totalTurn > self.step_threshold:
+            self.totalRewardAfter += reward
+        if self.episode_threshold is not None and self.totalEpisode > self.episode_threshold:
+            self.totalRewardAfter += reward
 
         # self.stepInEpisode += 1
         # if self.stepInEpisode == 10:
@@ -81,20 +96,28 @@ class VoiceTask_gptd:
         return episode_end
 
     def do_episodes(self, n=100):
+        self.episode_threshold = n/2
+
         while True:
             if self.totalEpisode == n:
                 break
             episode_end = self.do_step()
             if episode_end:
-                self.init_episode()  # reset belief to initial belief [0.65, 0.35]
-                avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
-                print 'avg reward: %.3f' % avg_reward
-                self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
-                self.stepInEpisode = 0
+                self.calc_episode_end()
         pass
+
+    def calc_episode_end(self):
+        self.init_episode()  # reset belief to initial belief [0.65, 0.35]
+        avg_reward = float(np.round((self.totalReward / self.totalEpisode), 3))
+        avg_reward_after = float(np.round((self.totalRewardAfter / self.totalEpisodeAfter), 3))
+        self.avg_rewards.append(tuple((self.totalEpisode, avg_reward)))
+        self.avg_rewards_after.append(tuple((self.totalEpisode, avg_reward_after)))
+        self.stepInEpisode = 0
+        print 'avg reward: %.3f' % avg_reward
 
     def print_summary(self):
         self.controller.end()
+        print 'GPTD - total steps: %d' % self.totalTurn
         print '\n-------summary-------------'
         print 'Total Episodes: %d' % self.totalEpisode
         print 'Total Rewards: %d' % self.totalReward
@@ -104,6 +127,9 @@ class VoiceTask_gptd:
     def get_reward_data(self):
         return self.avg_rewards
 
+    def get_reward_after_data(self):
+        return self.avg_rewards_after
+
     def save_results(self, filenm):
         import csv
         avg_rewards = self.get_reward_data()
@@ -111,6 +137,14 @@ class VoiceTask_gptd:
             writer = csv.DictWriter(csvfile, fieldnames=['episode', 'avg_reward'])
             writer.writeheader()
             for (episode, avg_reward) in avg_rewards:
+                writer.writerow({'episode': episode, 'avg_reward': avg_reward})
+
+        filenm = filenm.replace('.csv', '_after.csv')
+        avg_rewards_after = self.get_reward_after_data()
+        with open(filenm, 'wb') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=['episode', 'avg_reward'])
+            writer.writeheader()
+            for (episode, avg_reward) in avg_rewards_after:
                 writer.writerow({'episode': episode, 'avg_reward': avg_reward})
 
     def get_action_str(self, action_num):

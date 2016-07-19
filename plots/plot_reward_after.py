@@ -17,6 +17,9 @@ files = [
     'rewards_dist_sarsa.csv',
     'rewards_dist_optimal.csv',
     'rewards_dist_gptd.csv',
+    'rewards_dist_sarsa_after.csv',
+    'rewards_dist_gptd_after.csv',
+
 ]
 
 labels = [
@@ -24,13 +27,17 @@ labels = [
     'sarsa',
     'optimal',
     'gptd',
+    'sarsa_after',
+    'gptd_after'
 ]
 
 colors = [
     'r',
-    'g',
+    'g-.',
     'b',
-    'm',
+    'm-.',
+    'g',
+    'm'
 ]
 
 lines = []

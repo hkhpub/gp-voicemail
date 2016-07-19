@@ -78,6 +78,7 @@ class VoiceTask_optimal:
 
     def print_summary(self):
         self.controller.end()
+        print 'optimal policy - total steps: %d' % self.totalTurn
         print '\n-------summary-------------'
         print 'Total Episodes: %d' % self.totalEpisode
         print 'Total Rewards: %d' % self.totalReward
